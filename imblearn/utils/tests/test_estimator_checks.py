@@ -47,7 +47,12 @@ class NotFittedSampler(BaseBadSampler):
     """Sampler without target checking."""
 
     def fit(self, X, y):
-        X, y = self._validate_data(X, y)
+        if hasattr(self, "_validate_data"):
+            X, y = self._validate_data(X, y)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X, y = validate_data(self, X, y)
         return self
 
 
@@ -55,7 +60,12 @@ class NoAcceptingSparseSampler(BaseBadSampler):
     """Sampler which does not accept sparse matrix."""
 
     def fit(self, X, y):
-        X, y = self._validate_data(X, y)
+        if hasattr(self, "_validate_data"):
+            X, y = self._validate_data(X, y)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X, y = validate_data(self, X, y)
         self.sampling_strategy_ = "sampling_strategy_"
         return self
 
@@ -72,13 +82,20 @@ class NotPreservingDtypeSampler(BaseSampler):
 class IndicesSampler(BaseOverSampler):
     def _check_X_y(self, X, y):
         y, binarize_y = target_check(y, indicate_one_vs_all=True)
-        X, y = self._validate_data(
-            X,
-            y,
-            reset=True,
-            dtype=None,
-            force_all_finite=False,
-        )
+        params_validate_data = {
+            "X": X,
+            "y": y,
+            "reset": True,
+            "dtype": None,
+            "force_all_finite": False,
+        }
+
+        if hasattr(self, "_validate_data"):
+            X, y = self._validate_data(**params_validate_data)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X, y = validate_data(self, **params_validate_data)
         return X, y, binarize_y
 
     def _fit_resample(self, X, y):

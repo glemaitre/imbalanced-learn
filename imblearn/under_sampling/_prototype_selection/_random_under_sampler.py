@@ -99,8 +99,21 @@ class RandomUnderSampler(BaseUnderSampler):
     def _check_X_y(self, X, y):
         y, binarize_y = check_target_type(y, indicate_one_vs_all=True)
         X = _check_X(X)
-        self._check_n_features(X, reset=True)
-        self._check_feature_names(X, reset=True)
+
+        if hasattr(self, "_check_n_features"):
+            self._check_n_features(X, reset=True)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import _check_n_features
+
+            _check_n_features(self, X, reset=True)
+
+        if hasattr(self, "_check_feature_names"):
+            self._check_feature_names(X, reset=True)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import _check_feature_names
+
+            _check_feature_names(self, X, reset=True)
+
         return X, y, binarize_y
 
     def _fit_resample(self, X, y):

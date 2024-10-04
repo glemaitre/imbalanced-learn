@@ -25,12 +25,15 @@ from sklearn.datasets import (  # noqa
 )
 from sklearn.exceptions import SkipTestWarning
 from sklearn.preprocessing import StandardScaler, label_binarize
-from sklearn.utils._tags import _safe_tags
+
+try:
+    from sklearn.utils._tags import _safe_tags as get_tags
+except ImportError:  # scikit-learn >= 1.6
+    from sklearn.utils._tags import get_tags
 from sklearn.utils._testing import (
     SkipTest,
     assert_allclose,
     assert_array_equal,
-    assert_raises_regex,
     raises,
     set_random_state,
 )
@@ -98,7 +101,13 @@ def _set_checking_parameters(estimator):
 
 
 def _yield_sampler_checks(sampler):
-    tags = sampler._get_tags()
+    if hasattr(sampler, "_get_tags"):
+        tags = sampler._get_tags()
+        tags.get("sparse", False)
+        tags.get("string", False)
+        tags.get("allow_nan", False)
+    else:
+        tags = get_tags(sampler)
     yield check_target_type
     yield check_samplers_one_label
     yield check_samplers_fit
@@ -106,9 +115,8 @@ def _yield_sampler_checks(sampler):
     yield check_samplers_sampling_strategy_fit_resample
     if "sparse" in tags["X_types"]:
         yield check_samplers_sparse
-    if "dataframe" in tags["X_types"]:
-        yield check_samplers_pandas
-        yield check_samplers_pandas_sparse
+    yield check_samplers_pandas
+    yield check_samplers_pandas_sparse
     if "string" in tags["X_types"]:
         yield check_samplers_string
     if tags["allow_nan"]:
@@ -196,24 +204,14 @@ def check_target_type(name, estimator_orig):
     X = np.random.random((20, 2))
     y = np.linspace(0, 1, 20)
     msg = "Unknown label type:"
-    assert_raises_regex(
-        ValueError,
-        msg,
-        estimator.fit_resample,
-        X,
-        y,
-    )
+    with raises(ValueError, err_msg=msg):
+        estimator.fit_resample(X, y)
     # if the target is multilabel then we should raise an error
     rng = np.random.RandomState(42)
     y = rng.randint(2, size=(20, 3))
     msg = "Multilabel and multioutput targets are not supported."
-    assert_raises_regex(
-        ValueError,
-        msg,
-        estimator.fit_resample,
-        X,
-        y,
-    )
+    with raises(ValueError, err_msg=msg):
+        estimator.fit_resample(X, y)
 
 
 def check_samplers_one_label(name, sampler_orig):
@@ -541,14 +539,7 @@ def check_param_validation(name, estimator_orig):
                 continue
 
             with raises(ValueError, match=match, err_msg=err_msg):
-                if any(
-                    isinstance(X_type, str) and X_type.endswith("labels")
-                    for X_type in _safe_tags(estimator, key="X_types")
-                ):
-                    # The estimator is a label transformer and take only `y`
-                    getattr(estimator, method)(y)  # pragma: no cover
-                else:
-                    getattr(estimator, method)(X, y)
+                getattr(estimator, method)(X, y)
 
         # Then, for constraints that are more than a type constraint, check that the
         # error is raised if param does match a valid type but does not match any valid
@@ -571,7 +562,7 @@ def check_param_validation(name, estimator_orig):
                 with raises(ValueError, match=match, err_msg=err_msg):
                     if any(
                         X_type.endswith("labels")
-                        for X_type in _safe_tags(estimator, key="X_types")
+                        for X_type in get_tags(estimator, key="X_types")
                     ):
                         # The estimator is a label transformer and take only `y`
                         getattr(estimator, method)(y)  # pragma: no cover
@@ -587,7 +578,7 @@ def check_dataframe_column_names_consistency(name, estimator_orig):
             "pandas is not installed: not checking column name consistency for pandas"
         )
 
-    tags = _safe_tags(estimator_orig)
+    tags = get_tags(estimator_orig)
     is_supported_X_types = (
         "2darray" in tags["X_types"] or "categorical" in tags["X_types"]
     )

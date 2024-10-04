@@ -158,7 +158,18 @@ class BaseSampler(SamplerMixin, OneToOneFeatureMixin):
         if accept_sparse is None:
             accept_sparse = ["csr", "csc"]
         y, binarize_y = check_target_type(y, indicate_one_vs_all=True)
-        X, y = self._validate_data(X, y, reset=True, accept_sparse=accept_sparse)
+        params_validate_data = {
+            "X": X,
+            "y": y,
+            "reset": True,
+            "accept_sparse": accept_sparse,
+        }
+        if hasattr(self, "_validate_data"):
+            X, y = self._validate_data(**params_validate_data)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X, y = validate_data(self, **params_validate_data)
         return X, y, binarize_y
 
     def fit(self, X, y):

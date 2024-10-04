@@ -409,14 +409,20 @@ class BalancedBaggingClassifier(_ParamsValidationMixin, BaggingClassifier):
         """
         check_is_fitted(self)
 
-        # Check data
-        X = self._validate_data(
-            X,
-            accept_sparse=["csr", "csc"],
-            dtype=None,
-            force_all_finite=False,
-            reset=False,
-        )
+        params_validate_data = {
+            "X": X,
+            "accept_sparse": ["csr", "csc"],
+            "dtype": None,
+            "force_all_finite": False,
+            "reset": False,
+        }
+
+        if hasattr(self, "_validate_data"):
+            X = self._validate_data(**params_validate_data)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X = validate_data(self, **params_validate_data)
 
         # Parallel loop
         n_jobs, _, starts = _partition_estimators(self.n_estimators, self.n_jobs)

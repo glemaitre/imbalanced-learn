@@ -620,14 +620,21 @@ class BalancedRandomForestClassifier(_ParamsValidationMixin, RandomForestClassif
         else:
             force_all_finite = True
 
-        X, y = self._validate_data(
-            X,
-            y,
-            multi_output=True,
-            accept_sparse="csc",
-            dtype=DTYPE,
-            force_all_finite=force_all_finite,
-        )
+        params_validate_data = {
+            "X": X,
+            "y": y,
+            "multi_output": True,
+            "accept_sparse": "csc",
+            "dtype": DTYPE,
+            "force_all_finite": force_all_finite,
+        }
+
+        if hasattr(self, "_validate_data"):
+            X, y = self._validate_data(**params_validate_data)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X, y = validate_data(self, **params_validate_data)
 
         # TODO: remove when the minimum supported version of scikit-learn will be 1.4
         if parse_version(sklearn_version.base_version) >= parse_version("1.4"):

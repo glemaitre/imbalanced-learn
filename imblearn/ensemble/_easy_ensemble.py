@@ -15,7 +15,6 @@ from sklearn.ensemble import AdaBoostClassifier, BaggingClassifier
 from sklearn.ensemble._bagging import _parallel_decision_function
 from sklearn.ensemble._base import _partition_estimators
 from sklearn.exceptions import NotFittedError
-from sklearn.utils._tags import _safe_tags
 from sklearn.utils.fixes import parse_version
 from sklearn.utils.validation import check_is_fitted
 
@@ -323,14 +322,20 @@ class EasyEnsembleClassifier(_ParamsValidationMixin, BaggingClassifier):
         """
         check_is_fitted(self)
 
-        # Check data
-        X = self._validate_data(
-            X,
-            accept_sparse=["csr", "csc"],
-            dtype=None,
-            force_all_finite=False,
-            reset=False,
-        )
+        params_validate_data = {
+            "X": X,
+            "accept_sparse": ["csr", "csc"],
+            "dtype": None,
+            "force_all_finite": False,
+            "reset": False,
+        }
+
+        if hasattr(self, "_validate_data"):
+            X = self._validate_data(**params_validate_data)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X = validate_data(self, **params_validate_data)
 
         # Parallel loop
         n_jobs, _, starts = _partition_estimators(self.n_estimators, self.n_jobs)
@@ -372,4 +377,6 @@ class EasyEnsembleClassifier(_ParamsValidationMixin, BaggingClassifier):
 
     # TODO: remove when minimum supported version of scikit-learn is 1.5
     def _more_tags(self):
+        from sklearn.utils.tags import _safe_tags
+
         return {"allow_nan": _safe_tags(self._get_estimator(), "allow_nan")}

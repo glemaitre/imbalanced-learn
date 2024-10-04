@@ -118,6 +118,7 @@ class ValueDifferenceMetric(_ParamsValidationMixin, BaseEstimator):
            [0.04,  0.  ,  1.44],
            [1.96,  1.44,  0.  ]])
     """
+
     _parameter_constraints: dict = {
         "n_categories": [StrOptions({"auto"}), "array-like"],
         "k": [numbers.Integral],
@@ -148,7 +149,13 @@ class ValueDifferenceMetric(_ParamsValidationMixin, BaseEstimator):
         """
         self._validate_params()
         check_consistent_length(X, y)
-        X, y = self._validate_data(X, y, reset=True, dtype=np.int32)
+
+        if hasattr(self, "_validate_data"):
+            X, y = self._validate_data(X, y, reset=True, dtype=np.int32)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X, y = validate_data(self, X, y, reset=True, dtype=np.int32)
 
         if isinstance(self.n_categories, str) and self.n_categories == "auto":
             # categories are expected to be encoded from 0 to n_categories - 1
@@ -207,11 +214,21 @@ class ValueDifferenceMetric(_ParamsValidationMixin, BaseEstimator):
             The VDM pairwise distance.
         """
         check_is_fitted(self)
-        X = self._validate_data(X, reset=False, dtype=np.int32)
+        if hasattr(self, "_validate_data"):
+            X = self._validate_data(X, reset=False, dtype=np.int32)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X = validate_data(self, X, reset=False, dtype=np.int32)
         n_samples_X = X.shape[0]
 
         if Y is not None:
-            Y = self._validate_data(Y, reset=False, dtype=np.int32)
+            if hasattr(self, "_validate_data"):
+                Y = self._validate_data(Y, reset=False, dtype=np.int32)
+            else:  # scikit-learn >= 1.6
+                from sklearn.utils.validation import validate_data
+
+                Y = validate_data(self, Y, reset=False, dtype=np.int32)
             n_samples_Y = Y.shape[0]
         else:
             n_samples_Y = n_samples_X

@@ -599,8 +599,21 @@ class SMOTENC(SMOTE):
         """
         y, binarize_y = check_target_type(y, indicate_one_vs_all=True)
         X = _check_X(X)
-        self._check_n_features(X, reset=True)
-        self._check_feature_names(X, reset=True)
+
+        if hasattr(self, "_check_n_features"):
+            self._check_n_features(X, reset=True)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import _check_n_features
+
+            _check_n_features(self, X, reset=True)
+
+        if hasattr(self, "_check_feature_names"):
+            self._check_feature_names(X, reset=True)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import _check_feature_names
+
+            _check_feature_names(self, X, reset=True)
+
         return X, y, binarize_y
 
     def _validate_column_types(self, X):
@@ -957,13 +970,21 @@ class SMOTEN(SMOTE):
     def _check_X_y(self, X, y):
         """Check should accept strings and not sparse matrices."""
         y, binarize_y = check_target_type(y, indicate_one_vs_all=True)
-        X, y = self._validate_data(
-            X,
-            y,
-            reset=True,
-            dtype=None,
-            accept_sparse=["csr", "csc"],
-        )
+
+        params_validate_data = {
+            "X": X,
+            "y": y,
+            "reset": True,
+            "dtype": None,
+            "accept_sparse": ["csr", "csc"],
+        }
+
+        if hasattr(self, "_validate_data"):
+            X, y = self._validate_data(**params_validate_data)
+        else:  # scikit-learn >= 1.6
+            from sklearn.utils.validation import validate_data
+
+            X, y = validate_data(self, **params_validate_data)
         return X, y, binarize_y
 
     def _validate_estimator(self):
